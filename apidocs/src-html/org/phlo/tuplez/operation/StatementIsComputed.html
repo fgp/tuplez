@@ -1,0 +1,100 @@
+<HTML>
+<BODY BGCOLOR="white">
+<PRE>
+<FONT color="green">001</FONT>    package org.phlo.tuplez.operation;<a name="line.1"></a>
+<FONT color="green">002</FONT>    <a name="line.2"></a>
+<FONT color="green">003</FONT>    /**<a name="line.3"></a>
+<FONT color="green">004</FONT>     * Marks implementation of {@link Operation} as having<a name="line.4"></a>
+<FONT color="green">005</FONT>     * a SQL statement which depends on the input parameter an<a name="line.5"></a>
+<FONT color="green">006</FONT>     * can therefore not be specified by an annotation.<a name="line.6"></a>
+<FONT color="green">007</FONT>     * &lt;p&gt;<a name="line.7"></a>
+<FONT color="green">008</FONT>     * Implementations of {@link Operation} must provide a<a name="line.8"></a>
+<FONT color="green">009</FONT>     * {@link #getStatement(Object) getStatement(InputType input)} method.<a name="line.9"></a>
+<FONT color="green">010</FONT>     * &lt;p&gt;<a name="line.10"></a>
+<FONT color="green">011</FONT>     * The type passed as InputType here must be assignable from<a name="line.11"></a>
+<FONT color="green">012</FONT>     * instances of the database operation's InputType.<a name="line.12"></a>
+<FONT color="green">013</FONT>     * <a name="line.13"></a>
+<FONT color="green">014</FONT>     * @see #getStatement(Object)<a name="line.14"></a>
+<FONT color="green">015</FONT>     *<a name="line.15"></a>
+<FONT color="green">016</FONT>     * @param &lt;InputType&gt; Interface representing a database operation's input parameters<a name="line.16"></a>
+<FONT color="green">017</FONT>     */<a name="line.17"></a>
+<FONT color="green">018</FONT>    public interface StatementIsComputed&lt;InputType&gt; extends OperationInput&lt;InputType&gt; {<a name="line.18"></a>
+<FONT color="green">019</FONT>            /**<a name="line.19"></a>
+<FONT color="green">020</FONT>             * Must return the statement to be used to execute an <a name="line.20"></a>
+<FONT color="green">021</FONT>             * {@link StatementIsComputed} implementation<a name="line.21"></a>
+<FONT color="green">022</FONT>             * &lt;p&gt;<a name="line.22"></a>
+<FONT color="green">023</FONT>             * The returned statement can use parameter references to<a name="line.23"></a>
+<FONT color="green">024</FONT>             * reference input values. The only substitutions which<a name="line.24"></a>
+<FONT color="green">025</FONT>             * are supposed to be done in this method are ones for which<a name="line.25"></a>
+<FONT color="green">026</FONT>             * normal parameter substitution is not sufficient. One<a name="line.26"></a>
+<FONT color="green">027</FONT>             * could, for example, add different "ORDER BY" clauses to<a name="line.27"></a>
+<FONT color="green">028</FONT>             * the statement depending on some input value.<a name="line.28"></a>
+<FONT color="green">029</FONT>             * &lt;p&gt;<a name="line.29"></a>
+<FONT color="green">030</FONT>             * @param input the operation's input values<a name="line.30"></a>
+<FONT color="green">031</FONT>             * @return the statement to be sent to the database.<a name="line.31"></a>
+<FONT color="green">032</FONT>             */<a name="line.32"></a>
+<FONT color="green">033</FONT>            String getStatement(final InputType input);<a name="line.33"></a>
+<FONT color="green">034</FONT>    }<a name="line.34"></a>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</PRE>
+</BODY>
+</HTML>

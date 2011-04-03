@@ -1,0 +1,25 @@
+-classpath
+'/Users/fgp/Versioned/fgp/projects/tuplez/target/classes:/Users/fgp/.m2/repository/org/springframework/spring-aop/3.0.5.RELEASE/spring-aop-3.0.5.RELEASE.jar:/Users/fgp/.m2/repository/aopalliance/aopalliance/1.0/aopalliance-1.0.jar:/Users/fgp/.m2/repository/org/springframework/spring-expression/3.0.5.RELEASE/spring-expression-3.0.5.RELEASE.jar:/Users/fgp/.m2/repository/org/springframework/spring-jdbc/3.0.5.RELEASE/spring-jdbc-3.0.5.RELEASE.jar:/Users/fgp/.m2/repository/org/springframework/spring-beans/3.0.5.RELEASE/spring-beans-3.0.5.RELEASE.jar:/Users/fgp/.m2/repository/commons-logging/commons-logging/1.1.1/commons-logging-1.1.1.jar:/Users/fgp/.m2/repository/com/googlecode/gentyref/gentyref/1.1.0/gentyref-1.1.0.jar:/Users/fgp/.m2/repository/org/springframework/spring-asm/3.0.5.RELEASE/spring-asm-3.0.5.RELEASE.jar:/Users/fgp/.m2/repository/org/springframework/spring-core/3.0.5.RELEASE/spring-core-3.0.5.RELEASE.jar:/Users/fgp/.m2/repository/org/springframework/spring-context/3.0.5.RELEASE/spring-context-3.0.5.RELEASE.jar:/Users/fgp/.m2/repository/org/springframework/spring-tx/3.0.5.RELEASE/spring-tx-3.0.5.RELEASE.jar'
+-encoding
+'UTF-8'
+-protected
+-sourcepath
+'/Users/fgp/Versioned/fgp/projects/tuplez/src/main/java'
+-author
+-bottom
+'Copyright &#169; 2011. All Rights Reserved.'
+-charset
+'UTF-8'
+-d
+'/Users/fgp/Versioned/fgp/projects/tuplez/target/site/apidocs'
+-docencoding
+'UTF-8'
+-doctitle
+'tuplez 1.0-SNAPSHOT API'
+-link
+'http://java.sun.com/javase/6/docs/api'
+-linksource
+-use
+-version
+-windowtitle
+'tuplez 1.0-SNAPSHOT API'
