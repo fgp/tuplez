@@ -9,12 +9,15 @@ public class Statements {
 		return "test entry";
 	}
 	
+	public enum Kind { KIND_OF_COOL, KIND_OF_SUCKS }
+	
 	public interface TestNew {
 		String getStr();
 		BigDecimal getDez();
 		java.sql.Date getDay();
 		Integer getIdx();
 		String getDescription();
+		Kind getKind();
 		Class<?> getNoSuchColumn();
 	}
 	
@@ -29,7 +32,8 @@ public class Statements {
 		"dez DECIMAL(31,15) DEFAULT NULL, " +
 		"day DATE DEFAULT NULL," +
 		"idx INTEGER DEFAULT NULL," +
-		"des VARCHAR(256)" +
+		"des VARCHAR(256)," +
+		"kind VARCHAR(256)" +
 	")")
 	public interface CreateTest extends Operation<Void, Void> {}
 	
@@ -47,17 +51,17 @@ public class Statements {
 	
 	
 	@Statement("INSERT INTO test (" +
-			"id, str, dez, day, idx, des" +
+			"id, str, dez, day, idx, des, kind" +
 		") VALUES (" +
-			":in.id, :in.str, :in.dez, :in.day, :in.idx, :default.description" +
+			":in.id, :in.str, :in.dez, :in.day, :in.idx, :default.description, :in.kind" +
 	")")
 	public interface TestInsert extends Operation<TestFull, Void> {}
 	
 	
 	@Statement("INSERT INTO test (" +
-			"str, dez, day, idx, des" +
+			"str, dez, day, idx, des, kind" +
 		") VALUES (" +
-			":in.str, :in.dez, :in.day, :in.idx, :default.description" +
+			":in.str, :in.dez, :in.day, :in.idx, :default.description, :in.kind" +
 	")")
 	@KeyColumn("ID")
 	public interface TestInsertGenerateId extends ReturnsSingleRow, GeneratesKey<Long>, Operation<TestNew, Void> {}
@@ -71,20 +75,21 @@ public class Statements {
 	public interface TestInsertId extends Operation<Long, Void> {}
 
 	
-	@Statement("SELECT id, str, dez, day, idx, des as \"description\" " +
+	@Statement("SELECT id, str, dez, day, idx, des as \"description\", kind " +
 		"FROM test " +
 		"WHERE " +
 			"(id = :in.id OR (id IS NULL AND :in.id IS NULL)) AND " +
 			"(str = :in.str OR (str IS NULL AND :in.str IS NULL)) AND " +
 			"(dez = :in.dez OR (dez IS NULL AND :in.dez IS NULL)) AND " +
 			"(day = :in.day OR (day IS NULL AND :in.day IS NULL)) AND " +
-			"(idx = :in.idx OR (idx IS NULL AND :in.idx IS NULL))"
+			"(idx = :in.idx OR (idx IS NULL AND :in.idx IS NULL)) AND " +
+			"(kind = :in.kind OR (kind IS NULL AND :in.kind IS NULL))"
 	)
 	public interface TestFromFull extends ReturnsSingleRow, Operation<TestFull, TestFull> {}
 
 	
 	@Statement("SELECT " +
-			"id, str as string, dez as dezimal, day AS \"day\", idx AS \"idx\", des " +
+			"id, str as string, dez as dezimal, day AS \"day\", idx AS \"idx\", des, kind " +
 		"FROM test " +
 		"WHERE " +
 			"(id = :in.id OR (id IS NULL AND :in.id IS NULL)) AND " +
@@ -107,7 +112,7 @@ public class Statements {
 	public interface TestIdToStr extends ReturnsSingleRow, Operation<Long, String> {}
 	
 	
-	@Statement("SELECT id, str, dez, day, idx, des as \"description\" " +
+	@Statement("SELECT id, str, dez, day, idx, des as \"description\", kind " +
 		"FROM test " +
 		"WHERE id = :in"
 	)
@@ -130,8 +135,7 @@ public class Statements {
 		}
 	}
 	
-	
-	
+
 	public final class TestNonStatic implements
 		Operation<Void, Void>,
 		StatementIsComputed<Void>

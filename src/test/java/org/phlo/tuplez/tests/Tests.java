@@ -12,6 +12,7 @@ import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
 import org.phlo.tuplez.*;
 import org.phlo.tuplez.operation.*;
+import org.phlo.tuplez.tests.Statements.Kind;
 
 public class Tests {
 	private static Executor executor;
@@ -50,6 +51,7 @@ public class Tests {
 	final static BigDecimal[] ValuesDez = new BigDecimal[] {new BigDecimal("3.1415"), new BigDecimal("2.7")};
 	final static Date[] ValuesDay = new Date[] {Calendar1.getTime(), Calendar2.getTime()};
 	final static int[] ValuesIdx = new int[] { 42, 23};
+	final static Kind[] ValuesKind = new Kind[] { Kind.KIND_OF_COOL, Kind.KIND_OF_SUCKS };
 
 	@Before
 	public void setupData() {
@@ -66,6 +68,7 @@ public class Tests {
 				@Override public Integer getIdx() { return ValuesIdx[valIdx]; }
 				@Override public Class<?> getNoSuchColumn() { return null; }
 				@Override public String getDescription() { return null; }
+				@Override public Kind getKind() { return ValuesKind[valIdx]; }
 			});
 		}
 		
@@ -86,6 +89,7 @@ public class Tests {
 					@Override public Integer getIdx() { return ValuesIdx[valIdx]; }
 					@Override public Class<?> getNoSuchColumn() { return null; }
 					@Override public String getDescription() { return null; }
+					@Override public Kind getKind() { return ValuesKind[valIdx]; }
 				};
 			}
 			else {
@@ -97,6 +101,7 @@ public class Tests {
 					@Override public Integer getIdx() { return null; }
 					@Override public Class<?> getNoSuchColumn() { return null; }
 					@Override public String getDescription() { return null; }
+					@Override public Kind getKind() { return null; }
 				};
 			}
 			
@@ -126,7 +131,8 @@ public class Tests {
 					"getDez(): " + testFullOut.getDez() + "; " +
 					"getDay(): " + testFullOut.getDay() + "; " +
 					"getIdx(): " + testFullOut.getIdx() + "; " +
-					"getDescription(): " + (new Statements()).getDescription() +
+					"getDescription(): " + (new Statements()).getDescription() + "; " +
+					"getKind(): " + testFullOut.getKind() +
 				"}",
 				testFullOut.toString()
 			);
@@ -155,6 +161,7 @@ public class Tests {
 					@Override public Integer getIdx() { return ValuesIdx[valIdx]; }
 					@Override public Class<?> getNoSuchColumn() { return null; }
 					@Override public String getDescription() { return null; }
+					@Override public Kind getKind() { return ValuesKind[valIdx]; }
 				};
 			}
 			else {
@@ -166,6 +173,7 @@ public class Tests {
 					@Override public Integer getIdx() { return null; }
 					@Override public Class<?> getNoSuchColumn() { return null; }
 					@Override public String getDescription() { return null; }
+					@Override public Kind getKind() { return null; }
 				};
 			}
 			
@@ -189,7 +197,8 @@ public class Tests {
 					"getDez(): " + testFullOut.getDez() + "; " +
 					"getDay(): " + testFullOut.getDay() + "; " +
 					"getIdx(): " + testFullOut.getIdx() + "; " +
-					"getDescription(): " + (new Statements()).getDescription() +
+					"getDescription(): " + (new Statements()).getDescription() + "; " +
+					"getKind(): " + testFullOut.getKind() +
 				"}",
 				testFullOut.toString()
 			);
@@ -215,6 +224,7 @@ public class Tests {
 			@Override public Integer getIdx() { return null; }
 			@Override public Class<?> getNoSuchColumn() { return null; }
 			@Override public String getDescription() { return null; }
+			@Override public Kind getKind() { return null; }
 		});
 		
 		Assert.assertEquals(1000L, (long)id);
@@ -251,24 +261,24 @@ public class Tests {
 			executor.execute(Statements.TestNonStatic.class);
 			Assert.fail("Expected exception but none thrown");
 		}
-		catch (org.springframework.dao.InvalidDataAccessApiUsageException e) {
+		catch (InvalidOperationDefinitionException e) {
+			Assert.assertEquals(Statements.TestNonStatic.class, e.getOperation());
 			Assert.assertTrue("Wrong exception message: " + e.getMessage(),
-				("Database operation class " + Statements.TestNonStatic.class.getName() + " is a non-static inner class")
-				.equals(e.getMessage())
+				e.getMessage().contains("class is a non-static inner class")
 			);
 		}
 	}
-
+	
 	@Test
 	public void testNoDefaultConstructor() {
 		try {
 			executor.execute(Statements.TestNoDefaultConstructor.class);
 			Assert.fail("Expected exception but none thrown");
 		}
-		catch (org.springframework.dao.InvalidDataAccessApiUsageException e) {
+		catch (InvalidOperationDefinitionException e) {
+			Assert.assertEquals(Statements.TestNoDefaultConstructor.class, e.getOperation());
 			Assert.assertTrue("Wrong exception message: " + e.getMessage(),
-				("Database operation class " + Statements.TestNoDefaultConstructor.class.getName() + " has no default constructor")
-				.equals(e.getMessage())
+				e.getMessage().contains("class has no default constructor")
 			);
 		}
 	}
@@ -279,12 +289,10 @@ public class Tests {
 			executor.execute(Statements.TestNoStatement.class);
 			Assert.fail("Expected exception but none thrown");
 		}
-		catch (org.springframework.dao.InvalidDataAccessApiUsageException e) {
+		catch (InvalidOperationDefinitionException e) {
+			Assert.assertEquals(Statements.TestNoStatement.class, e.getOperation());
 			Assert.assertTrue("Wrong exception message: " + e.getMessage(),
-				("Failed to determine statement for " + Statements.TestNoStatement.class.getName() + ". " +
-				"Class neither implements " + StatementIsComputed.class.getSimpleName() + " " +
-				"nor does it carry @" + Statement.class.getSimpleName() + " annotation.")
-				.equals(e.getMessage())
+				e.getMessage().contains("class neither implements StatementIsComputed nor does it carry @Statement annotation")
 			);
 		}
 	}
@@ -295,13 +303,11 @@ public class Tests {
 			executor.execute(Statements.TestAmbiguousStatement.class);
 			Assert.fail("Expected exception but none thrown");
 		}
-		catch (org.springframework.dao.InvalidDataAccessApiUsageException e) {
+		catch (InvalidOperationDefinitionException e) {
+			Assert.assertEquals(Statements.TestAmbiguousStatement.class, e.getOperation());
 			Assert.assertTrue("Wrong exception message: " + e.getMessage(),
-				("Ambiguity while determining statement for " + Statements.TestAmbiguousStatement.class.getName() + ". " +
-				"Class both implements " + StatementIsComputed.class.getSimpleName() + " " +
-				"and carries a @" + Statement.class.getSimpleName() + " annotation.")
-				.equals(e.getMessage())
+				e.getMessage().contains("class both implements StatementIsComputed and carries a @Statement annotation")
 			);
 		}
-	}
+	}	
 }

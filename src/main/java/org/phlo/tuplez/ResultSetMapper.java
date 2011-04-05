@@ -12,11 +12,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
-import org.springframework.dao.DataRetrievalFailureException;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.jdbc.UncategorizedSQLException;
-
-import com.googlecode.gentyref.GenericTypeReflector;
 
 import org.phlo.tuplez.operation.*;
 
@@ -40,42 +36,27 @@ public final class ResultSetMapper<OutputType> {
 	static private final ConcurrentMap<ID<?>, ResultSetMapper<?>> s_resultSetMappers = new java.util.concurrent.ConcurrentHashMap<ID<?>, ResultSetMapper<?>>();
 	
 	/**
-	 * Mapping between the {@link Class} instances representing
-	 * primitive types (like int) and the corresponding {@link Class}
-	 * instances representing their boxed (object) types (like Integer)
+	 * Default JDBC accessors
 	 */
-	static private Map<Class<?>, Class<?>> s_classPrimitiveToBoxed = new java.util.HashMap<Class<?>, Class<?>>();
-	static {
-		s_classPrimitiveToBoxed.put(Boolean.TYPE, Boolean.class);
-		s_classPrimitiveToBoxed.put(Character.TYPE, Character.class);
-		s_classPrimitiveToBoxed.put(Byte.TYPE, Byte.class);
-		s_classPrimitiveToBoxed.put(Short.TYPE, Short.class);
-		s_classPrimitiveToBoxed.put(Integer.TYPE, Integer.class);
-		s_classPrimitiveToBoxed.put(Long.TYPE, Long.class);
-		s_classPrimitiveToBoxed.put(Float.TYPE, Float.class);
-		s_classPrimitiveToBoxed.put(Double.TYPE, Double.class);
-	}
-	
-	/**
-	 * Mapping between the {@link Class} instances representing
-	 * boxed primitive types (like Integer) and their corresponding
-	 * unboxed types (like int).
-	 */
-	static private Map<Class<?>, Class<?>> s_classBoxedToPrimitive = new java.util.HashMap<Class<?>, Class<?>>();
-	static {
-		for(Map.Entry<Class<?>, Class<?>> m: s_classPrimitiveToBoxed.entrySet())
-			s_classBoxedToPrimitive.put(m.getValue(), m.getKey());
-	}
-	
-	/**
-	 * List of JDBC accessor methods that are ignored when
-	 * autodetecting the JDBC accessor based on the output
-	 * type's accessor's return type.
-	 */
-	static private Set<String> s_jdbcAccessorBlackList = new java.util.HashSet<String>();
-	static {
-		s_jdbcAccessorBlackList.add("getNString");
-		s_jdbcAccessorBlackList.add("getLength");
+	static private final Map<Class<?>, Method> s_resultSetDefaultAccessors = new java.util.HashMap<Class<?>, Method>();
+	{
+		try {
+			s_resultSetDefaultAccessors.put(Boolean.class, ResultSet.class.getMethod("getBoolean", Integer.TYPE));
+			s_resultSetDefaultAccessors.put(Character.class, ResultSet.class.getMethod("getShort", Integer.TYPE));
+			s_resultSetDefaultAccessors.put(Byte.class, ResultSet.class.getMethod("getByte", Integer.TYPE));
+			s_resultSetDefaultAccessors.put(Short.class, ResultSet.class.getMethod("getShort", Integer.TYPE));
+			s_resultSetDefaultAccessors.put(Integer.class, ResultSet.class.getMethod("getInt", Integer.TYPE));
+			s_resultSetDefaultAccessors.put(Long.class, ResultSet.class.getMethod("getLong", Integer.TYPE));
+			s_resultSetDefaultAccessors.put(Float.class, ResultSet.class.getMethod("getFloat", Integer.TYPE));
+			s_resultSetDefaultAccessors.put(Double.class, ResultSet.class.getMethod("getDouble", Integer.TYPE));
+			s_resultSetDefaultAccessors.put(String.class, ResultSet.class.getMethod("getString", Integer.TYPE));
+		}
+		catch (SecurityException e) {
+			throw new RuntimeException("Failed to populate JDBC default accessor map", e);
+		}
+		catch (NoSuchMethodException e) {
+			throw new RuntimeException("Failed to populate JDBC default accessor map", e);
+		}
 	}
 	
 	/**
@@ -89,6 +70,9 @@ public final class ResultSetMapper<OutputType> {
 			final Class<? extends Operation<?, OutputType>> _opClass,
 			final Class<? extends ResultSet> _rsClass
 		) {
+			assert _opClass != null;
+			assert _rsClass != null;
+			
 			opClass = _opClass;
 			rsClass = _rsClass;
 		}
@@ -108,9 +92,9 @@ public final class ResultSetMapper<OutputType> {
 				return false;
 			
 			ID<?> otherID = (ID<?>)other;
-			if (opClass != otherID.opClass)
+			if (!opClass.equals(otherID.opClass))
 				return false;
-			if (rsClass != otherID.rsClass)
+			if (!rsClass.equals(otherID.rsClass))
 				return false;
 			return true;
 		}
@@ -188,8 +172,12 @@ public final class ResultSetMapper<OutputType> {
 		public Method getterMethod;
 		public String jdbcAccessorName;
 		public Method jdbcAccessorMethod;
+		public boolean transformToEnum;
 	}
 
+	/* Operation */
+	final private Class<? extends Operation<?, ?>> m_opClass;
+	
 	/* Column meta data. Computed during construction */
 	final private List<ColumnMetaData> m_columns = new java.util.ArrayList<ColumnMetaData>();
 	
@@ -210,13 +198,10 @@ public final class ResultSetMapper<OutputType> {
 		final ResultSetMetaData rsMeta
 	) throws SQLException
 	{
+		m_opClass = opClass;
+		
 		/* Get OutputType of statement class */
-		m_outputClass = (Class<?>)GenericTypeReflector.getTypeParameter(
-			opClass,
-			OperationOutput.class.getTypeParameters()[0]
-		);
-		if (m_outputClass == null)
-			throw new InvalidDataAccessApiUsageException("Unable to determine statement's output class");
+		m_outputClass = OperationMetaData.getOperationOutputClass(opClass);
 				
 		/* First, fetch column names */
 		int colNr = rsMeta.getColumnCount();
@@ -297,7 +282,11 @@ public final class ResultSetMapper<OutputType> {
 			m_firstColumnIsOutput = false;
 			for(ColumnMetaData colMeta: m_columns) {
 				if (!computeOutputGetter(colMeta))
-					throw new DataRetrievalFailureException("No getter for " + colMeta.columnName + " found in " + m_outputClass.getName());
+					throw new InvalidOperationDefinitionException(
+						"no getter was found " +
+						"for column " + colMeta.columnName,
+						m_opClass
+					);
 			}
 			
 			/* Store getter order */
@@ -309,7 +298,12 @@ public final class ResultSetMapper<OutputType> {
 		{
 			for(ColumnMetaData colMeta: m_columns) {
 				if (!computeJdbcAccessor(colMeta, rsClass))
-					throw new DataRetrievalFailureException("No JDBC accessor for column " + colMeta.columnName + " with type " + colMeta.columnClass.getName() + " found");
+					throw new InvalidOperationDefinitionException(
+						"no ResultSet accessor was found " +
+						"for column " + colMeta.columnName + " " +
+						"with type " + colMeta.columnClass.getName(),
+						m_opClass
+					);
 			}
 		}
 	}
@@ -326,7 +320,13 @@ public final class ResultSetMapper<OutputType> {
 				colMeta.getterMethod = m_outputClass.getMethod(colMeta.getterName);
 			}
 			catch (NoSuchMethodException e) {
-				throw new InvalidDataAccessApiUsageException("No getter named " + colMeta.getterName + " for column " + colMeta.columnName + " in" + m_outputClass.getName(), e);
+				throw new InvalidOperationDefinitionException(
+					"getter " + colMeta.getterName + " " +
+					"for column " + colMeta.columnName + " " +
+					"does not exist",
+					m_opClass,
+					e
+				);
 			}
 		}
 		else {
@@ -372,16 +372,15 @@ public final class ResultSetMapper<OutputType> {
 		
 				default:
 					StringBuilder b = (new StringBuilder())
-						.append("Ambiguous getter for column ")
+						.append("multiple possible getters for column ")
 						.append(colMeta.columnName)
-						.append(" in ")
-						.append(m_outputClass.getName())
+						.append("detected. ")
 						.append("The candidates are |");
 					for(Method c: candidates) {
 						b.append(c.toString());
 						b.append("|");
 					}
-					throw new DataRetrievalFailureException(b.toString());
+					throw new InvalidOperationDefinitionException(b.toString(), m_opClass);
 			}
 		}
 		
@@ -418,20 +417,38 @@ public final class ResultSetMapper<OutputType> {
 			return true;
 		}
 		
+		/* If the accessor name was specified, simply lookup the method */
+		
 		if (colMeta.jdbcAccessorName != null) {
 			/* The accessor's name was specified, we just need to lookup the method */
 			try {
-				colMeta.jdbcAccessorMethod = rsClass.getMethod(colMeta.jdbcAccessorName, new Class<?>[] {Integer.TYPE});
+				colMeta.jdbcAccessorMethod = rsClass.getMethod(colMeta.jdbcAccessorName, Integer.TYPE);
 			}
 			catch (NoSuchMethodException e) {
-				throw new InvalidDataAccessApiUsageException("JDBC Accessor " + colMeta.jdbcAccessorName + " for column " + colMeta.columnName + " does not exist in " + rsClass.getName(), e);
+				throw new InvalidOperationDefinitionException(
+					"ResultSet accessor " + colMeta.jdbcAccessorName + " " +
+					"for column " + colMeta.columnName + " " +
+					"does not exist",
+					m_opClass,
+					e
+				);
 			}
 			return true;
 		}
-
-		/* No accessor name was specified. We try auto-detection based
-		 * on the column's type. To resolve ambiguities, we distinguish
-		 * four matching levels.
+		
+		/* No accessor name was specified. Check if we know of a 
+		 * default accessor for the column's type
+		 */
+		
+		colMeta.jdbcAccessorMethod = s_resultSetDefaultAccessors.get(colMeta.columnClass);
+		if (colMeta.jdbcAccessorMethod != null) {
+			colMeta.jdbcAccessorName = colMeta.jdbcAccessorMethod.getName();
+			return true;
+		}
+		
+		/* No accessor name was specified and no default accessor is known.
+		 * We try auto-detection based on the column's type. To resolve ambiguities
+		 * we distinguish four matching levels.
 		 *   0: Method from ResultSet interface, return type equals column type
 		 *   1: Method from ResultSet interface, return type assignable to column type
 		 *   2: Method from concrete ResultSet implementation, return type equals column type
@@ -447,41 +464,29 @@ public final class ResultSetMapper<OutputType> {
 		candidateLevels.add(new java.util.HashSet<Method>());
 		candidateLevels.add(new java.util.HashSet<Method>());
 		for(Method candidate: rsClass.getMethods()) {
-			String candidateName = candidate.getName();
 			/* We're only interested in column value accessors,
-			 * not other methods of ResultSet. We thus limit
-			 * the search to methods named get* and which take
-			 * exactly one parameter of type "int". We also
-			 * skip candidates listed in the JDBC accessor
-			 * black list
+			 * not other methods of ResultSet.
 			 */
 			
-			if (!candidateName.substring(0,3).equals("get") ||
-			    s_jdbcAccessorBlackList.contains(candidateName)
-			) {
+			/* Must be a public non-static member */
+			int candidateModifiers = candidate.getModifiers();
+			if (!Modifier.isPublic(candidateModifiers) || Modifier.isStatic(candidateModifiers))
 				continue;
-			}
 			
+			/* The accessor must be named "get*" */
+			String candidateName = candidate.getName();
+			if ((candidateName.length() <= 3) || !candidateName.startsWith("get"))
+				continue;
+			
+			/* The accessor must take exactly one parameter of type int */
 			Class<?>[] candidateParameters = candidate.getParameterTypes();
 			if (!(candidateParameters.length == 1) || !(candidateParameters[0].isAssignableFrom(Integer.TYPE)))
 				continue;
 			
 			/* The accessor's return type must be convertible to the
 			 * column's declared type.
-			 * 
-			 * NOTE: The column's declared class is never a primitive type,
-			 * since those cannot represent null values. But the ResultSet
-			 * accessors (like getInt()) do return primitive types (
-			 * as opposed to their boxed equivalents, e.g. getInt() returns
-			 * int, not Integer). We must thus map one to the other to
-			 * be able to detect ResultSet accessors for primitive types
 			 */
 			Class<?> candidateClass = candidate.getReturnType();
-			if (candidateClass.isPrimitive()) {
-				if (!s_classPrimitiveToBoxed.containsKey(candidateClass))
-					throw new DataRetrievalFailureException("Primitive type " + candidateClass.getName() + " is not supported. NOTE: This probably means that ResultSetMapper needs to be tought about this type!");
-				candidateClass = s_classPrimitiveToBoxed.get(candidateClass);
-			}
 			if (!colMeta.columnClass.isAssignableFrom(candidateClass))
 				continue;
 			
@@ -524,17 +529,32 @@ public final class ResultSetMapper<OutputType> {
 
 				default:
 					StringBuilder b = (new StringBuilder())
-						.append("Ambigous JDBC accessors for column ")
+						.append("multiple possible ResultSet accessor for column ")
 						.append(colMeta.columnName)
 						.append(" with type ")
 						.append(colMeta.columnClass)
+						.append(" detected. ")
 						.append("The candidates are |");
 					for(Method c: candidates) {
 						b.append(c.toString());
 						b.append("|");
 					}
-					throw new DataRetrievalFailureException(b.toString());
+					throw new InvalidOperationDefinitionException(b.toString(), m_opClass);
 			}
+		}
+		
+		/*
+		 * Auto-detection didn't turn up anything either. Resort
+		 * to type-specific special cases
+		 */
+		
+		if (colMeta.columnClass.isEnum()) {
+			/* For enums, we use Enum#valueOf to convert from a string to
+			 * an enum value
+			 */
+			colMeta.jdbcAccessorMethod = s_resultSetDefaultAccessors.get(String.class);
+			colMeta.jdbcAccessorName = colMeta.jdbcAccessorMethod.getName();
+			colMeta.transformToEnum = true;
 		}
 		
 		/* Update meta data and report success or failure */
@@ -565,13 +585,25 @@ public final class ResultSetMapper<OutputType> {
 				colValue = colMeta.jdbcAccessorMethod.invoke(resultSet, colIdx);		
 			}
 			catch (IllegalAccessException e) {
-				throw new InvalidDataAccessApiUsageException("Insufficient permissions to fetch the value of column " + colMeta.columnName + " using " + colMeta.jdbcAccessorMethod.toString(), e);
+				throw new InvalidOperationDefinitionException(
+					"ResultSet accessor " + colMeta.jdbcAccessorMethod + " " +
+					"for column " + colMeta.columnName + " " +
+					"could not be invoked",
+					m_opClass,
+					e
+				);
 			}
 			catch (InvocationTargetException e) {
 				if (e.getTargetException() instanceof SQLException)
 					throw (SQLException)e.getTargetException();
 				else
-					throw new InvalidDataAccessApiUsageException("Unable to fetch the value of column " + colMeta.columnName + " using " + colMeta.jdbcAccessorMethod.toString(), e);
+					throw new InvalidOperationDefinitionException(
+						"ResultSet accessor " + colMeta.jdbcAccessorMethod + " " +
+						"for column " + colMeta.columnName + " " +
+						"failed",
+						m_opClass,
+						e
+					);
 			}
 			
 			/* Since the accessor for primitive types return unboxed values,
@@ -581,6 +613,26 @@ public final class ResultSetMapper<OutputType> {
 			 */
 			if (resultSet.wasNull())
 				colValue = null;
+			
+			/* For Enums, we now use Enum.valueOf to convert to the target type */
+			if (colMeta.transformToEnum) {
+				if (colValue != null) {
+					try {
+						@SuppressWarnings({ "unchecked", "rawtypes" })
+						Object colEnumValue = Enum.valueOf((Class)colMeta.columnClass, (String)colValue);
+						colValue = colEnumValue;
+					}
+					catch (IllegalArgumentException e) {
+						throw new InvalidOperationDefinitionException(
+							"value '" + colValue + "' " +
+							"of column " + colMeta.columnName + " " +
+							"does not match any of " +
+							colMeta.columnClass.getName() + "'s values",
+							m_opClass,
+							e);
+					}
+				}
+			}
 			
 			/* In first-column output mode, we're done */
 			if (m_firstColumnIsOutput) {

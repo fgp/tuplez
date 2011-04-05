@@ -3,10 +3,6 @@ package org.phlo.tuplez;
 import java.lang.reflect.Modifier;
 import java.util.concurrent.ConcurrentMap;
 
-import org.springframework.dao.InvalidDataAccessApiUsageException;
-
-import com.googlecode.gentyref.GenericTypeReflector;
-
 import org.phlo.tuplez.operation.*;
 
 /**
@@ -55,40 +51,22 @@ public final class StatementMapper<InputType> {
 		 * @Statement annotations. If both fail, we complain. If both succeed, we
 		 * complain too
 		 */
-		/* Get annotated statement (if any) */
-		m_statementAnnotation = opClass.getAnnotation(Statement.class);
 		
-		/* Check if operation requested dynamic statement */
 		if (StatementIsComputed.class.isAssignableFrom(opClass)) {
-			/* Do the type parameter to DatabaseOperation and StatementIsComputed match?
-			 * Note that we don't require the types to be equal, we just require
-			 * the operation's input type to be assignable to whatever was specified
-			 * as InputType of StatementIsComputed.
+			/* Statement is generated dynamically. We cast opClass to
+			 * the correct type, i.e. we tell the type checker that
+			 * it implements StatementIsComputed.
 			 */
-			Class<? >opInputType = (Class<?>)GenericTypeReflector.getTypeParameter(
-				opClass,
-				OperationInput.class.getTypeParameters()[0]
-			);
-			Class<? >statementIsComputedInputType = (Class<?>)GenericTypeReflector.getTypeParameter(
-				opClass,
-				StatementIsComputed.class.getTypeParameters()[0]
-			);
-			if (!statementIsComputedInputType.isAssignableFrom(opInputType))
-				throw new InvalidDataAccessApiUsageException(
-					"Database operation class " + opClass.getName() + " " +
-					"specifies incompatible types for the InputTypes of " +
-					"StatementIsComputed and DatabaseOperation"
-				);
 			@SuppressWarnings("unchecked")
-			final Class<? extends StatementIsComputed<? super InputType>> opClassStatementIsComputed =
-				(Class<? extends StatementIsComputed<? super InputType>>)opClass;
+			final Class<? extends StatementIsComputed<InputType>> opStmtIsComputedClass =
+				(Class<? extends StatementIsComputed<InputType>>) opClass;
 			
 			/* Dynamic statement operation. Annotation must not be present. */
-			if (m_statementAnnotation != null)
-				throw new InvalidDataAccessApiUsageException(
-					"Ambiguity while determining statement for " + opClass.getName() + ". " +
-					"Class both implements " + StatementIsComputed.class.getSimpleName() + " " +
-					"and carries a @" + Statement.class.getSimpleName() + " annotation."
+			if (opClass.getAnnotation(Statement.class) != null)
+				throw new InvalidOperationDefinitionException(
+					"class both implements " + StatementIsComputed.class.getSimpleName() + " " +
+					"and carries a @" + Statement.class.getSimpleName() + " annotation",
+					opClass
 				);
 			
 			/* Sanity checks. These are in principle redundant, but greatly improve the quality
@@ -99,7 +77,7 @@ public final class StatementMapper<InputType> {
 			Class<?> opEnclosingClass = opClass;
 			do {
 				if ((opClass.getModifiers() & Modifier.STATIC) == 0)
-					throw new InvalidDataAccessApiUsageException("Database operation class " + opClass.getName() + " is a non-static inner class");
+					throw new InvalidOperationDefinitionException("class is a non-static inner class", opClass);
 				opEnclosingClass = opEnclosingClass.getEnclosingClass();
 			} while (opEnclosingClass != null);
 			
@@ -108,43 +86,39 @@ public final class StatementMapper<InputType> {
 				opClass.getConstructor();
 			}
 			catch (SecurityException e1) {
-				throw new InvalidDataAccessApiUsageException("Database operation class " + opClass.getName() + "'s default constructor is inaccessible");
+				throw new InvalidOperationDefinitionException("default constructor is inaccessible", opClass, e1);
 			}
 			catch (NoSuchMethodException e1) {
-				throw new InvalidDataAccessApiUsageException("Database operation class " + opClass.getName() + " has no default constructor");
+				throw new InvalidOperationDefinitionException("class has no default constructor", opClass, e1);
 			}
 			
 			/* Create instance */
 			try {
-				m_statementIsComputedInstance = opClassStatementIsComputed.newInstance();
+				m_statementIsComputedInstance = opStmtIsComputedClass.newInstance();
 			}
 			catch (InstantiationException e) {
-				throw new InvalidDataAccessApiUsageException(
-					"Failed to instanciate dynamic statement database operation " +
-					opClass.getName(),
-					e
-				);
+				throw new InvalidOperationDefinitionException("class could not be instantiated", opClass, e);
 			}
 			catch (IllegalAccessException e) {
-				throw new InvalidDataAccessApiUsageException(
-					"Insufficient permissions to instanciate dynamic statement database operation " +
-					opClass.getName(),
-					e
-				);
+				throw new InvalidOperationDefinitionException("class could not be instantiated", opClass, e);
 			}
+			
+			m_statementAnnotation = null;
 		}
 		else /* !StatementIsComputed.class.isAssignableFrom(opClass) */
 		{
-			/* Static statement operation. Annotation must be present */
+			/* Statement must be provided via a Statement annotation */
+			m_statementAnnotation = opClass.getAnnotation(Statement.class);
+			m_statementIsComputedInstance = null;
+			
+			/* Complain if no statement was provided */
 			if (m_statementAnnotation == null) {
-				throw new InvalidDataAccessApiUsageException(
-					"Failed to determine statement for " + opClass.getName() + ". " +
-					"Class neither implements " + StatementIsComputed.class.getSimpleName() + " " +
-					"nor does it carry @" + Statement.class.getSimpleName() + " annotation."
+				throw new InvalidOperationDefinitionException(
+					"class neither implements " + StatementIsComputed.class.getSimpleName() + " " +
+					"nor does it carry @" + Statement.class.getSimpleName() + " annotation",
+					opClass
 				);
 			}
-			
-			m_statementIsComputedInstance = null;
 		}
 	}
 	

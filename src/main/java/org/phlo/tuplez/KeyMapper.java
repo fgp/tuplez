@@ -7,8 +7,6 @@ import java.util.concurrent.ConcurrentMap;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.jdbc.support.KeyHolder;
 
-import com.googlecode.gentyref.GenericTypeReflector;
-
 import org.phlo.tuplez.operation.*;
 
 public class KeyMapper<KeyType extends Number> {
@@ -57,11 +55,7 @@ public class KeyMapper<KeyType extends Number> {
 		m_generatedKeyAnnotation = opClass.getAnnotation(KeyColumn.class);
 
 		/* Get declared key type */
-		@SuppressWarnings("unchecked")
-		Class<KeyType> keyType = (Class<KeyType>)GenericTypeReflector.getTypeParameter(
-			opClass,
-			GeneratesKey.class.getTypeParameters()[0]
-		);
+		Class<KeyType> keyType = OperationMetaData.getOperationKeyClass(opClass);
 		
 		/* Create extractor for the declared key type */
 		
