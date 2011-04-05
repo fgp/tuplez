@@ -10,7 +10,6 @@ import javax.sql.DataSource;
 import org.phlo.tuplez.operation.*;
 import org.springframework.beans.factory.annotation.Required;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.jdbc.core.*;
 import org.springframework.jdbc.support.*;
 import org.springframework.jdbc.core.namedparam.*;
@@ -38,18 +37,11 @@ import org.springframework.jdbc.core.namedparam.*;
  * @see Operation
  */
 public class Executor {
-	private static final SqlParameterSource s_noDefaultInputSqlParameterSource = new SqlParameterSource() {
-		@Override public boolean hasValue(String paramName) { return false; }
-		@Override public Object getValue(String paramName) { throw new IllegalArgumentException("No default input configured"); }
-		@Override public int getSqlType(String paramName) { return TYPE_UNKNOWN; }
-		@Override public String getTypeName(String paramName) { return null; }
-	};
-	
 	/* The named-parameter JDBC template used to execute operations */
 	private NamedParameterJdbcTemplate m_npJdbcTemplate;
 
 	/* The parameter source for default.* input parameters */
-	private SqlParameterSource m_defaultInputSqlParameterSource = s_noDefaultInputSqlParameterSource;
+	private Object m_defaultInput;
 	
 	/**
 	 * Allows construction of {@link Executor} instances
@@ -83,41 +75,28 @@ public class Executor {
 	public void setDataSource(final DataSource dataSource) {
 		m_npJdbcTemplate = new NamedParameterJdbcTemplate(dataSource);
 	}
-	
+		
 	/**
 	 * Set the executor's default input parameter bean.
 	 * <p>
 	 * This object is queried when database operations
 	 * access default.* parameters.
 	 * 
-	 * @see #setDefaultInputSqlParameterSource(SqlParameterSource)
-	 * 
 	 * @param defaultInput default input parameter bean
 	 */
 	public void setDefaultInput(final Object defaultInput) {
-		if (defaultInput == null)
-			m_defaultInputSqlParameterSource = s_noDefaultInputSqlParameterSource;
-		else
-			m_defaultInputSqlParameterSource = new BeanPropertySqlParameterSource(defaultInput);
+		m_defaultInput = defaultInput;
 	}
 	
 	/**
-	 * Set the executor's default input parameter source.
-	 * <p>
-	 * This parameter source is queried when database operations
-	 * access default.* parameters.
-	 * <p>
-	 * Usually it's easier to use {@link #setDefaultInput(Object)} 
+	 * Returns the executor's default input parameter bean.
 	 * 
 	 * @see #setDefaultInput(Object)
 	 * 
-	 * @param defaultInputSqlParameterSource default input parameter source
+	 * @return default input parameter bean
 	 */
-	public void setDefaultInputSqlParameterSource(final SqlParameterSource defaultInputSqlParameterSource) {
-		if (defaultInputSqlParameterSource == null)
-			m_defaultInputSqlParameterSource = s_noDefaultInputSqlParameterSource;
-		else
-			m_defaultInputSqlParameterSource = defaultInputSqlParameterSource;
+	public Object getDefaultInput() {
+		return m_defaultInput;
 	}
 	
 	/**
@@ -132,17 +111,7 @@ public class Executor {
 	public JdbcOperations getJdbcOperations() {
 		return m_npJdbcTemplate.getJdbcOperations();
 	}
-	
-	/**
-	 * Returns the {@link SqlParameterSource} responsible
-	 * for default.* parameters
-	 * 
-	 * @return {@link SqlParameterSource} for default.*
-	 */
-	public SqlParameterSource getDefaultInputSqlParameterSource() {
-		return m_defaultInputSqlParameterSource;
-	}
-	
+
 	/**
 	 * Executes a database operation using the provided
 	 * instance of {@code InputType} to fill in parameters,
@@ -187,9 +156,14 @@ public class Executor {
 		final ConcreteInputType input,
 		final IteratorProcessor<OutputType, ResultType> iteratorProcessor
 	) {
+		InputMapper<InputType> inputMapper = InputMapper.getInstance(
+			opClass,
+			(m_defaultInput != null) ? m_defaultInput.getClass() : null
+		);
+		
 		return m_npJdbcTemplate.query(
 			StatementMapper.getInstance(opClass).getStatement(input),
-			InputMapper.getInstance(opClass).mapInput(this, input),
+			inputMapper.mapInput(input, m_defaultInput),
 			new ResultSetExtractor<ResultType>() {
 				public ResultType extractData(final ResultSet resultSet) throws SQLException
 				{
@@ -333,7 +307,7 @@ public class Executor {
 	 * <p>
 	 * It is an error for an operation executed with
 	 * this method to return more than one row. Doing
-	 * so triggers an {@link InvalidDataAccessApiUsageException}
+	 * so triggers an {@link IncorrectResultSizeDataAccessException}
 	 * <p>
 	 * If the database operation requires no input (meaning
 	 * {@code <InputType} is {@link Void}) you must use
@@ -393,7 +367,7 @@ public class Executor {
 	 * <p>
 	 * It is an error for an operation executed with
 	 * this method to return more than one row. Doing
-	 * so triggers an {@link InvalidDataAccessApiUsageException}
+	 * so triggers an {@link IncorrectResultSizeDataAccessException}
 	 * <p>
 	 * If the database operation requires input (meaning
 	 * {@code <InputType} is not {@link Void}) you must use
@@ -428,7 +402,7 @@ public class Executor {
 	 * <p>
 	 * It is an error for an operation executed with
 	 * this method to return more than one key. Doing
-	 * so triggers an {@link InvalidDataAccessApiUsageException}
+	 * so triggers an {@link IncorrectResultSizeDataAccessException}
 	 * <p>
 	 * If the database operation requires input (meaning
 	 * {@code <InputType} is not {@link Void}) you must use
@@ -458,12 +432,17 @@ public class Executor {
 		final Class<OpClassType> opClass,
 		final ConcreteInputType input
 	) {
+		InputMapper<InputType> inputMapper = InputMapper.getInstance(
+			opClass,
+			(m_defaultInput != null) ? m_defaultInput.getClass() : null
+		);
+
 		KeyMapper<KeyType> keyMapper = KeyMapper.getInstance(opClass);
 		KeyHolder keyHolder = new GeneratedKeyHolder();
 		
 		m_npJdbcTemplate.update(
 			StatementMapper.getInstance(opClass).getStatement(input),
-			InputMapper.getInstance(opClass).mapInput(this, input),
+			inputMapper.mapInput(input, m_defaultInput),
 			keyHolder,
 			keyMapper.getGeneratedKeyColumns()
 		);
@@ -482,7 +461,7 @@ public class Executor {
 	 * <p>
 	 * It is an error for an operation executed with
 	 * this method to return more than one key. Doing
-	 * so triggers an {@link InvalidDataAccessApiUsageException}
+	 * so triggers an {@link IncorrectResultSizeDataAccessException}
 	 * <p>
 	 * If the database operation requires no input (meaning
 	 * {@code <InputType} is {@link Void}) you must use
@@ -534,9 +513,14 @@ public class Executor {
 		final Class<OpClassType> opClass,
 		final ConcreteInputType input
 	) {
+		InputMapper<InputType> inputMapper = InputMapper.getInstance(
+			opClass,
+			(m_defaultInput != null) ? m_defaultInput.getClass() : null
+		);
+
 		m_npJdbcTemplate.update(
 			StatementMapper.getInstance(opClass).getStatement(input),
-			InputMapper.getInstance(opClass).mapInput(this, input)
+			inputMapper.mapInput(input, m_defaultInput)
 		);
 	}
 	
