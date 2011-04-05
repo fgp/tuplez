@@ -5,11 +5,16 @@
 
 	<groupId>org.phlo</groupId>
 	<artifactId>tuplez</artifactId>
-	<version>1.0</version>
-	<packaging>jar</packaging>
-
 	<name>tuplez</name>
-	<url>http://maven.apache.org</url>
+	<version>1.0-SNAPSHOT</version>
+	<description>
+		Functional and Type-Safe Data Access and Modification via JDBC.
+		
+		
+	</description>
+	<url>http://github.com/fgp/tuplez</url>
+	<inceptionYear>2011</inceptionYear>
+	<packaging>jar</packaging>
 
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -53,15 +58,74 @@
 					<encoding>UTF-8</encoding>
 					<source>1.6</source>
 					<target>1.6</target>
-					<optimize>true</optimize>
-					<debug>true</debug>
 				</configuration>
 			</plugin>
+		</plugins>
+		<extensions>
+			<extension>
+				<groupId>org.apache.maven.scm</groupId>
+				<artifactId>maven-scm-provider-gitexe</artifactId>
+				<version>1.3</version>
+			</extension>
+			<extension>
+				<groupId>org.apache.maven.scm</groupId>
+				<artifactId>maven-scm-manager-plexus</artifactId>
+				<version>1.3</version>
+			</extension>
+			<extension>
+				<groupId>org.kathrynhuxtable.maven.wagon</groupId>
+				<artifactId>wagon-gitsite</artifactId>
+				<version>0.3.1</version>
+			</extension>
+		</extensions>
+	</build>
+
+	<reporting>
+		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<version>2.7</version>
+				<configuration>
+					<detectJavaApiLink>true</detectJavaApiLink>
+					<detectLink>true</detectLink>
+					<linksource>true</linksource>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jxr-plugin</artifactId>
+				<version>2.2</version>
 			</plugin>
 		</plugins>
-	</build>
+	</reporting>
+
+	<developers>
+		<developer>
+			<id>fgp</id>
+			<name>Florian Pflug</name>
+			<email>fgp [at] phlo.org</email>
+			<roles>
+				<role>Project Manager</role>
+			</roles>
+			<timezone>CET</timezone>
+		</developer>
+	</developers>
+	<issueManagement>
+		<system>Github</system>
+		<url>https://github.com/fgp/tuplez/issues</url>
+	</issueManagement>
+
+	<scm>
+		<url>https://github.com/fgp/tuplez</url>
+		<connection>scm:git:https://fgp@github.com/fgp/tuplez.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/fgp/tuplez.git</developerConnection>
+	</scm>
+
+	<distributionManagement>
+		<site>
+			<id>github-project-site</id>
+			<url>gitsite:git@github.com/fgp/tuplez</url>
+		</site>
+	</distributionManagement>
 </project>

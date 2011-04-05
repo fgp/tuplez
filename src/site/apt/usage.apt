@@ -1,0 +1,103 @@
+Overview
+
+* Defining Database Operations
+
+  Database Operations are declared by defining an interface (or class, both work)
+  which implements the generic interface <<<Operation\<InputType, OutputType\>>>>.
+  <<<InputType>>> is the java type which represents the operation's input parameters,
+  while <<<OutputType>>> represents its output columns. The database operation
+  itself must <not> be a generic type itself. If the operation requires not input
+  or produces no output, <<<Void>>> must be specified as <<<InputType>>> respectively
+  <<<OutputType>>>.
+  
+  Like a function, a database operation requires not only a declaration, i.e.
+  a specification of it's arguments (input parameters) and result (output rows),
+  but also an implementation. Database operations are always implemented by
+  SQL statements, which can either be provided statically by a <<<Statement>>>
+  annotation or dynamically by implementing the interface <<<StatementIsComputed>>>.
+  
+  Here is an example of a simple database operation which creates a table.
+
++--
+import org.phlo.tuplez.operation.*
+
+@Statement("CREATE TABLE description (item_id int, txt text)")
+interface CreateTable implements Operation<Void, Void>
++--
+
+  And here is an SELECT statement which retrieves an item's descriptions.
+
++--
+import org.phlo.tuplez.operation.*
+
+@Statement("SELECT txt FROM description WHERE item_id = :in")
+interface GetItemDescriptionsById implements Operation<String, Integer>
++--
+
+* Creating Executor Instances
+
+  Database Operations are executed by instances of <<<Executor>>> which
+  hold a reference to a JDBC <<<DataSource>>>. <<<Executor>>> defines
+  various members which execute database operations. 
+  
+  Usually, you'd create a global <<<Executor>>> instance using your
+  dependency injection framework of choice and inject that instance
+  into your data-aware beans.
+  
+  If you're using Spring this is accomplished by putting the following
+  into your application context configuration file.
+  
++--
+<bean id="DatabaseExecutor" class="org.phlo.tuplez.Executor">
+  <property name="DataSource" ref="nameOfMyDataSourceBean"/>
+</bean>
++--
+
+  Executor instances can also simply be created with <<<new>>>.
+
++--
+import org.phlo.tuplez.Executor
+
+...
+
+  Executor myExecutor = new Executor(myDataSource);
++--
+
+* Executing Database Operations
+
+  Having obtained an <<<Executor>>> instance, database operations
+  are executed by using the various members provided by <<<Executor>>>.
+  The two basic ones are
+
+  * <<<collection>>>()
+  
+    Takes a non-<<<Void>>>-returning Operation and an instance of the
+    operation's <<<InputType>>> and returns a <<<Collection>>> of
+    <<<OutputType>>> instances, each representing a row returned by the
+    operation. There is also a single-argument version of <<<collection()>>>
+    for database operations with no input (i.e. an <<<InputType>>> of
+    <<<Void>>>).
+    
+  * <<<execute>>>()
+  
+    Takes an <<<Void>>>-returning Operation and an instance of the
+    operation's <<<InputType>>> and executes the operation. There is
+    also a single-argument version of <<<execute()>>> for database
+    operations with no input.
+    
+  []
+
+  Here is how you'd execute the <<<CreateTable>>> database operation
+  defined above
+  
++--
+  myExecutor.execute(CreateTable.class)
++--
+
+  And here is how you'd fetch all descriptions of a certain item using
+  the GetItemDescriptionsById operation defined above.
+  
++--
+  int itemId = ...;
+  Collection<String> descs = myExecutor.execute(GetItemDescriptionsById, itemId);
++--
