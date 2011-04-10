@@ -9,7 +9,7 @@ import java.lang.annotation.*;
  * <p>
  * Useful only on concrete {@link Operation}
  * implementations which are marked as
- * {@link GeneratesKey}.
+ * {@link OperationGeneratesKey}.
  * <p>
  * If this annotation is present, the
  * operation is executed with
@@ -28,6 +28,7 @@ import java.lang.annotation.*;
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
+@Inherited
 public @interface KeyColumn {
 	String value();
 }

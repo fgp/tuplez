@@ -9,7 +9,7 @@ import java.sql.SQLException;
  * code that doesn't declare "throws SQLException". 
  */
 @SuppressWarnings("serial")
-class WrappedSQLException extends RuntimeException {
+final class WrappedSQLException extends RuntimeException {
 	private final SQLException m_sqlException;
 	
 	WrappedSQLException(final SQLException sqlException) {

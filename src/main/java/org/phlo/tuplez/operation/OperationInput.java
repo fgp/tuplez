@@ -11,4 +11,12 @@ package org.phlo.tuplez.operation;
  * @param <InputType> the operation's {@literal InputType}
  */
 public interface OperationInput<InputType> {
+	public boolean getInputSet();
+	
+	public InputType getInput();
+
+	public void setInput(final InputType input);
+	
+	public void clearInput();
+
 }

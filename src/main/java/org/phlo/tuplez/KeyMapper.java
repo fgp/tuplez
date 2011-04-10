@@ -9,7 +9,7 @@ import org.springframework.jdbc.support.KeyHolder;
 
 import org.phlo.tuplez.operation.*;
 
-public class KeyMapper<KeyType extends Number> {
+final class KeyMapper<KeyType extends Number> {
 	/**
 	 * Statement mapper instance cache
 	 */
@@ -18,16 +18,17 @@ public class KeyMapper<KeyType extends Number> {
 	/**
 	 * Factory methods for StatementMapper instances
 	 * 
-	 * @param <KeyType> KeyType of the {@link Operation} which {@link GeneratesKey}
+	 * @param <KeyType> KeyType of the {@link Operation} which {@link OperationGeneratesKey}
 	 * @param opClass The concrete {@link Operation}
 	 * @return An StatementMapper instance
 	 */
 	public static <
 		KeyType extends Number,
-		OpClassType extends Operation<?, Void> & GeneratesKey<KeyType>
+		InputType,
+		OpType extends Operation<InputType, Void> & OperationGeneratesKey<InputType, KeyType>
 	>
 	KeyMapper<KeyType>
-	getInstance(final Class<OpClassType> opClass)
+	getInstance(final Class<OpType> opClass)
 	{
 		@SuppressWarnings("unchecked")
 		KeyMapper<KeyType> keyMapper = (KeyMapper<KeyType>)s_keyMappers.get(opClass);
@@ -47,15 +48,16 @@ public class KeyMapper<KeyType extends Number> {
 	private final KeyExtractor<? extends Number> m_keyExtractor;
 	
 	public <
-		OpClassType extends Operation<?, Void> & GeneratesKey<KeyType>
+		InputType,
+		OpType extends Operation<InputType, Void> & OperationGeneratesKey<InputType, KeyType>
 	>
-	KeyMapper(final Class<OpClassType> opClass)
+	KeyMapper(final Class<OpType> opClass)
 	{
 		/* Get generated key columns */
 		m_generatedKeyAnnotation = opClass.getAnnotation(KeyColumn.class);
 
 		/* Get declared key type */
-		Class<KeyType> keyType = OperationMetaData.getOperationKeyClass(opClass);
+		Class<KeyType> keyType = OperationMetaData.getKeyClass(opClass);
 		
 		/* Create extractor for the declared key type */
 		

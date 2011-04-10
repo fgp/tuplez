@@ -1,5 +1,9 @@
 package org.phlo.tuplez.operation;
 
+import java.util.Collection;
+
+import org.phlo.tuplez.IteratorProcessor;
+
 /**
  * {@link Operation} is base Interface which must
  * be implemented by all classes representing concrete
@@ -37,7 +41,7 @@ package org.phlo.tuplez.operation;
  * {@link OperationOutput}, each parameterized with the
  * {@literal InputType} respectively the {@literal OutputType}.
  * This allows other parameterized interfaces like
- * {@link GeneratesKey} to force a particular
+ * {@link OperationGeneratesKey} to force a particular
  * {@literal InputType} or {@literal OutputType}.
  * 
  * @see OperationInput
@@ -48,8 +52,73 @@ package org.phlo.tuplez.operation;
  * @param <InputType> Interface representing a database operation's input parameters
  * @param <OutputType> Interface representing a database operation's output parameters
  */
-public interface Operation<InputType, OutputType> extends OperationInput<InputType>, OperationOutput<OutputType> {
-	/* This interface is just a means of achieving
-	 * compile-time type safety
-	 */ 
+public interface Operation<InputType, OutputType> extends OperationInput<InputType>, OperationOutput<OutputType> {	
+	Class<? extends Operation<InputType, OutputType>> getOperationClass();
+	
+	<IfaceType> IfaceType getDefaultImplementation(final Class<IfaceType> ifaceClass);
+
+	<Iface> Iface getActualImplementation(final Class<Iface> ifaceClass);
+
+	String getStatement();
+	
+	/**
+	 * Executes the operation, passing an iterator over the
+	 * output to an {@link IteratorProcessor}
+	 * 
+	 * @see org.phlo.tuplez.Executor#iterate(Class, Object, IteratorProcessor)
+	 * 
+	 * @param <ResultType> the iterator processor's result type
+	 * @param input the operation's input 
+	 * @param iteratorProcessor the iterator processor
+	 * @return the result produces by the iterator processor
+	 */
+	<ResultType> ResultType iterate(final InputType input, final IteratorProcessor<OutputType, ResultType> iteratorProcessor);
+	
+	/**
+	 * Executes the operation, passing an iterator over the
+	 * output to an {@link IteratorProcessor}
+	 * 
+	 * @see org.phlo.tuplez.Executor#iterate(Class, IteratorProcessor)
+	 * 
+	 * @param <ResultType> the iterator processor's result type
+	 * @param iteratorProcessor the iterator processor
+	 * @return the result produces by the iterator processor
+	 */
+	<ResultType> ResultType iterate(final IteratorProcessor<OutputType, ResultType> iteratorProcessor);
+
+	/**
+	 * Executes the operation, returning a collection containing
+	 * the output.
+	 * 
+	 * @see org.phlo.tuplez.Executor#collection(Class, Object)
+	 * 
+	 * @param input the operation's input
+	 * @return collection over the statement's output
+	 */
+	Collection<OutputType> collection(final InputType input);
+	
+	/**
+	 * Executes the operation, returning a collection containing
+	 * the output.
+	 * 
+	 * @see org.phlo.tuplez.Executor#collection(Class)
+	 * 
+	 * @return collection over the statement's output
+	 */
+	Collection<OutputType> collection();
+
+	/**
+	 * Executes the operation
+	 * 
+	 * @see org.phlo.tuplez.Executor#execute(Class, Object)
+	 * @param input the operation's input
+	 */
+	void execute(final InputType input);
+
+	/**
+	 * Executes the operation
+	 * 
+	 * @see org.phlo.tuplez.Executor#execute(Class)
+	 */
+	void execute();
 }

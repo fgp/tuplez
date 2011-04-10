@@ -29,6 +29,28 @@ package org.phlo.tuplez.operation;
  *                  {@link java.math.BigDecimal BigDecimal}
  */
 
-public interface GeneratesKey<KeyType extends Number> extends OperationOutput<Void> {
-	/* Just a marker, no members */
+public interface OperationGeneratesKey<InputType, KeyType extends Number> extends
+	Operation<InputType, Void>,
+	OperationKey<KeyType>
+{
+	/**
+	 * Executes the operation, returning the single
+	 * generated key.
+	 * 
+	 * @see org.phlo.tuplez.Executor#key(Class, Object)
+	 * 
+	 * @param input the operation's input
+	 * @return the generated key
+	 */
+	KeyType key(final InputType input);
+	
+	/**
+	 * Executes the operation, returning the single
+	 * generated key.
+	 * 
+	 * @see org.phlo.tuplez.Executor#key(Class)
+	 * 
+	 * @return the generated key
+	 */
+	KeyType key();
 }

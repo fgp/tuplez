@@ -43,7 +43,7 @@ public class Statements {
 
 	
 	@Statement("INSERT INTO SINGLE (unit) VALUES (DEFAULT)")
-	public interface InsertSingle extends GeneratesKey<Integer>, ReturnsSingleRow, Operation<Void, Void> {}
+	public interface InsertSingle extends OperationGeneratesKey<Void, Integer> {}
 
 		
 	@Statement("DELETE FROM test")
@@ -64,7 +64,7 @@ public class Statements {
 			":in.str, :in.dez, :in.day, :in.idx, :default.description, :in.kind" +
 	")")
 	@KeyColumn("ID")
-	public interface TestInsertGenerateId extends ReturnsSingleRow, GeneratesKey<Long>, Operation<TestNew, Void> {}
+	public interface TestInsertGenerateId extends OperationGeneratesKey<TestNew, Long> {}
 
 	
 	@Statement("INSERT INTO test (" +
@@ -85,7 +85,7 @@ public class Statements {
 			"(idx = :in.idx OR (idx IS NULL AND :in.idx IS NULL)) AND " +
 			"(kind = :in.kind OR (kind IS NULL AND :in.kind IS NULL))"
 	)
-	public interface TestFromFull extends ReturnsSingleRow, Operation<TestFull, TestFull> {}
+	public interface TestFromFull extends OperationReturnsSingleRow<TestFull, TestFull> {}
 
 	
 	@Statement("SELECT " +
@@ -109,19 +109,23 @@ public class Statements {
 	
 	
 	@Statement("SELECT str FROM test WHERE id = :in")
-	public interface TestIdToStr extends ReturnsSingleRow, Operation<Long, String> {}
+	public interface TestIdToStr extends OperationReturnsSingleRow<Long, String> {}
 	
 	
 	@Statement("SELECT id, str, dez, day, idx, des as \"description\", kind " +
 		"FROM test " +
 		"WHERE id = :in"
 	)
-	public interface TestIdToFull extends ReturnsSingleRow, Operation<Integer, TestFull> {}
+	public interface TestIdToFull extends OperationReturnsSingleRow<Integer, TestFull> {}
 	
 	
-	public final static class TestResultSize implements
-		Operation<Integer, String>, ReturnsSingleRow,
-		StatementIsComputed<Integer>
+	@Statement("SELECT id, str, dez, day, idx, des as \"description\", kind FROM test ORDER BY id")
+	public static abstract class TestAllFull implements Operation<Void, TestFull> {}
+	
+	
+	public static abstract class TestResultSize implements
+		OperationReturnsSingleRow<Integer, String>,
+		OperationStatementIsComputed<Integer, String>
 	{
 		@Override
 		public String getStatement(Integer input) {
@@ -136,17 +140,15 @@ public class Statements {
 	}
 	
 
-	public final class TestNonStatic implements
-		Operation<Void, Void>,
-		StatementIsComputed<Void>
+	public abstract class TestNonStatic implements
+		OperationStatementIsComputed<Void, Void>
 	{
 		@Override public String getStatement(Void input) { return null; }
 	}
 
 	
-	public final static class TestNoDefaultConstructor implements
-		Operation<Void, Void>,
-		StatementIsComputed<Void>
+	public static abstract class TestNoDefaultConstructor implements
+		OperationStatementIsComputed<Void, Void>
 	{
 		public TestNoDefaultConstructor(String dummy) {}
 		@Override public String getStatement(Void input) { return null; }
@@ -157,9 +159,8 @@ public class Statements {
 	
 	
 	@Statement("")
-	public final class TestAmbiguousStatement implements
-		Operation<Void, Void>,
-		StatementIsComputed<Void>
+	public static abstract class TestAmbiguousStatement implements
+		OperationStatementIsComputed<Void, Void>
 	{
 		@Override public String getStatement(Void input) { return null; }
 	}

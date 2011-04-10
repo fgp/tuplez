@@ -29,7 +29,7 @@ import org.phlo.tuplez.operation.*;
  * 
  * @param <OutputType> type repesenting result rows
  */
-public final class ResultSetMapper<OutputType> {
+final class ResultSetMapper<OutputType> {
 	/**
 	 * ResultSetMapper instances created by {@link getInstance}
 	 */
@@ -201,7 +201,7 @@ public final class ResultSetMapper<OutputType> {
 		m_opClass = opClass;
 		
 		/* Get OutputType of statement class */
-		m_outputClass = OperationMetaData.getOperationOutputClass(opClass);
+		m_outputClass = OperationMetaData.getOutputClass(opClass);
 				
 		/* First, fetch column names */
 		int colNr = rsMeta.getColumnCount();

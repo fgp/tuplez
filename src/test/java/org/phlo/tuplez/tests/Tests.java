@@ -27,9 +27,9 @@ public class Tests {
 		executor.setDefaultInput(new Statements());
 		
 		/* Create Schema */
-		executor.execute(Statements.CreateTest.class);
-		executor.execute(Statements.CreateSingle.class);
-		Integer id = executor.key(Statements.InsertSingle.class);
+		executor.with(Statements.CreateTest.class).execute();
+		executor.with(Statements.CreateSingle.class).execute();
+		Integer id = executor.with(Statements.InsertSingle.class).key();
 		Assert.assertEquals(1, (int)id);
 	}
 
@@ -53,61 +53,51 @@ public class Tests {
 	final static int[] ValuesIdx = new int[] { 42, 23};
 	final static Kind[] ValuesKind = new Kind[] { Kind.KIND_OF_COOL, Kind.KIND_OF_SUCKS };
 
-	@Before
-	public void setupData() {
-		executor.execute(Statements.TestDelete.class);
-
-		for(int i = 0; i < ValuesCount; ++i) {
-			final int valIdx = i;
-
-			executor.execute(Statements.TestInsert.class, new Statements.TestFull() {
-				@Override public Long getId() { return (long)(valIdx + 1); }
-				@Override public String getStr() { return ValuesStr[valIdx]; }
-				@Override public BigDecimal getDez() { return ValuesDez[valIdx]; }
-				@Override public java.sql.Date getDay() { return new java.sql.Date(ValuesDay[valIdx].getTime()); }
-				@Override public Integer getIdx() { return ValuesIdx[valIdx]; }
+	public Statements.TestFull getDummyDataTestFull(final int id) {
+		if ((id > 0) && (id <= ValuesCount)) {
+			return new Statements.TestFull() {
+				@Override public Long getId() { return (long)id; }
+				@Override public String getStr() { return ValuesStr[id-1]; }
+				@Override public BigDecimal getDez() { return ValuesDez[id-1]; }
+				@Override public java.sql.Date getDay() { return new java.sql.Date(ValuesDay[id-1].getTime()); }
+				@Override public Integer getIdx() { return ValuesIdx[id-1]; }
 				@Override public Class<?> getNoSuchColumn() { return null; }
 				@Override public String getDescription() { return null; }
-				@Override public Kind getKind() { return ValuesKind[valIdx]; }
-			});
+				@Override public Kind getKind() { return ValuesKind[id-1]; }
+			};
 		}
-		
-		executor.execute(Statements.TestInsertId.class, (long)(ValuesCount + 1));
+		else {
+			return new Statements.TestFull() {
+				@Override public Long getId() { return (long)id; }
+				@Override public String getStr() { return null; }
+				@Override public BigDecimal getDez() { return null; }
+				@Override public java.sql.Date getDay() { return null; }
+				@Override public Integer getIdx() { return null; }
+				@Override public Class<?> getNoSuchColumn() { return null; }
+				@Override public String getDescription() { return null; }
+				@Override public Kind getKind() { return null; }
+			};
+		}
 	}
 	
+	@Before
+	public void setupData() {
+		executor.with(Statements.TestDelete.class).execute();
+
+		for(int i = 0; i < ValuesCount; ++i)
+			executor.with(Statements.TestInsert.class).execute(getDummyDataTestFull(i+1));
+		
+		executor.with(Statements.TestInsertId.class).execute((long)(ValuesCount + 1));
+	}
+
 	public void testFromFull(final Class<? extends Operation<Statements.TestFull, Statements.TestFull>> opClass) {
 		for(int i = 0; i <= ValuesCount; ++i) {
-			final int valIdx = i;
-			final Statements.TestFull testFull;
-			
-			if (valIdx < ValuesCount) {
-				testFull = new Statements.TestFull() {
-					@Override public Long getId() { return (long)(valIdx + 1); }
-					@Override public String getStr() { return ValuesStr[valIdx]; }
-					@Override public BigDecimal getDez() { return ValuesDez[valIdx]; }
-					@Override public java.sql.Date getDay() { return new java.sql.Date(ValuesDay[valIdx].getTime()); }
-					@Override public Integer getIdx() { return ValuesIdx[valIdx]; }
-					@Override public Class<?> getNoSuchColumn() { return null; }
-					@Override public String getDescription() { return null; }
-					@Override public Kind getKind() { return ValuesKind[valIdx]; }
-				};
-			}
-			else {
-				testFull = new Statements.TestFull() {
-					@Override public Long getId() { return (long)(valIdx + 1); }
-					@Override public String getStr() { return null; }
-					@Override public BigDecimal getDez() { return null; }
-					@Override public java.sql.Date getDay() { return null; }
-					@Override public Integer getIdx() { return null; }
-					@Override public Class<?> getNoSuchColumn() { return null; }
-					@Override public String getDescription() { return null; }
-					@Override public Kind getKind() { return null; }
-				};
-			}
+			/* Get input */
+			final Statements.TestFull testFull = getDummyDataTestFull(i+1);
 			
 			/* Run through DB */
-			Statements.TestFull testFullOut = executor.get(Statements.TestFromFull.class, testFull);
-			Assert.assertNotNull("One row expected, none found (valIdx=" + valIdx + ")", testFullOut);
+			Statements.TestFull testFullOut = executor.with(Statements.TestFromFull.class).get(testFull);
+			Assert.assertNotNull("One row expected, none found (id=" + (i+1) + ")", testFullOut);
 			Assert.assertEquals(testFullOut, testFullOut);
 			Assert.assertEquals(testFullOut.hashCode(), testFullOut.hashCode());
 			
@@ -139,71 +129,6 @@ public class Tests {
 		}
 	}
 	
-	@Test
-	public void testIdToFull() {
-		for(int i = 0; i <= ValuesCount; ++i) {
-			final int valIdx = i;
-			
-			/* Run through DB */
-			Statements.TestFull testFullOut = executor.get(Statements.TestIdToFull.class, (valIdx+1));
-			Assert.assertNotNull("One row expected, none found (valIdx=" + valIdx + ")", testFullOut);
-			Assert.assertEquals(testFullOut, testFullOut);
-			Assert.assertEquals(testFullOut.hashCode(), testFullOut.hashCode());
-
-			/* Expected Output */
-			final Statements.TestFull testFullExpected;
-			if (valIdx < ValuesCount) {
-				testFullExpected = new Statements.TestFull() {
-					@Override public Long getId() { return (long)(valIdx + 1); }
-					@Override public String getStr() { return ValuesStr[valIdx]; }
-					@Override public BigDecimal getDez() { return ValuesDez[valIdx]; }
-					@Override public java.sql.Date getDay() { return new java.sql.Date(ValuesDay[valIdx].getTime()); }
-					@Override public Integer getIdx() { return ValuesIdx[valIdx]; }
-					@Override public Class<?> getNoSuchColumn() { return null; }
-					@Override public String getDescription() { return null; }
-					@Override public Kind getKind() { return ValuesKind[valIdx]; }
-				};
-			}
-			else {
-				testFullExpected = new Statements.TestFull() {
-					@Override public Long getId() { return (long)(valIdx + 1); }
-					@Override public String getStr() { return null; }
-					@Override public BigDecimal getDez() { return null; }
-					@Override public java.sql.Date getDay() { return null; }
-					@Override public Integer getIdx() { return null; }
-					@Override public Class<?> getNoSuchColumn() { return null; }
-					@Override public String getDescription() { return null; }
-					@Override public Kind getKind() { return null; }
-				};
-			}
-			
-			/* Compare fields */
-			Assert.assertEquals(testFullExpected.getId(), testFullOut.getId());
-			Assert.assertEquals(testFullExpected.getStr(), testFullOut.getStr());
-			if ((testFullExpected.getDez() != null) && (testFullOut.getDez() != null))
-				Assert.assertEquals(testFullExpected.getDez().stripTrailingZeros(), testFullOut.getDez().stripTrailingZeros());
-			else
-				Assert.assertEquals(testFullExpected.getDez(), testFullOut.getDez());
-			Assert.assertEquals(testFullExpected.getDay(), testFullOut.getDay());
-			Assert.assertEquals(testFullExpected.getIdx(), testFullOut.getIdx());
-			Assert.assertEquals((new Statements()).getDescription(), testFullOut.getDescription());
-			Assert.assertEquals(testFullExpected.getNoSuchColumn(), testFullOut.getNoSuchColumn());
-			
-			/* Validate toString() */
-			Assert.assertEquals(
-				"{" +
-					"getId(): " + testFullOut.getId() + "; " +
-					"getStr(): " + testFullOut.getStr() + "; " +
-					"getDez(): " + testFullOut.getDez() + "; " +
-					"getDay(): " + testFullOut.getDay() + "; " +
-					"getIdx(): " + testFullOut.getIdx() + "; " +
-					"getDescription(): " + (new Statements()).getDescription() + "; " +
-					"getKind(): " + testFullOut.getKind() +
-				"}",
-				testFullOut.toString()
-			);
-		}
-	}
 	
 	@Test
 	public void testFromFullNotAnnotated() {
@@ -216,8 +141,32 @@ public class Tests {
 	}
 	
 	@Test
+	public void testIdToFull() {
+		for(int i = 0; i <= ValuesCount; ++i) {
+			/* Run through DB */
+			Statements.TestFull testFullOut = executor.with(Statements.TestIdToFull.class).get(i+1);
+			Assert.assertNotNull("One row expected, none found (id=" + (i+1) + ")", testFullOut);
+			
+			/* Expected Output */
+			final Statements.TestFull testFullExpected = getDummyDataTestFull(i+1);
+			
+			/* Compare fields */
+			Assert.assertEquals(testFullExpected.getId(), testFullOut.getId());
+			Assert.assertEquals(testFullExpected.getStr(), testFullOut.getStr());
+			if ((testFullExpected.getDez() != null) && (testFullOut.getDez() != null))
+				Assert.assertEquals(testFullExpected.getDez().stripTrailingZeros(), testFullOut.getDez().stripTrailingZeros());
+			else
+				Assert.assertEquals(testFullExpected.getDez(), testFullOut.getDez());
+			Assert.assertEquals(testFullExpected.getDay(), testFullOut.getDay());
+			Assert.assertEquals(testFullExpected.getIdx(), testFullOut.getIdx());
+			Assert.assertEquals((new Statements()).getDescription(), testFullOut.getDescription());
+			Assert.assertEquals(testFullExpected.getNoSuchColumn(), testFullOut.getNoSuchColumn());
+		}
+	}
+	
+	@Test
 	public void testGeneratedKey() {
-		Long id = executor.key(Statements.TestInsertGenerateId.class, new Statements.TestNew() {
+		Long id = executor.with(Statements.TestInsertGenerateId.class).key(new Statements.TestNew() {
 			@Override public String getStr() { return null; }
 			@Override public BigDecimal getDez() { return null; }
 			@Override public java.sql.Date getDay() { return null; }
@@ -232,14 +181,24 @@ public class Tests {
 	
 	@Test
 	public void testIdToStr() {
-		Assert.assertEquals("foo", executor.get(Statements.TestIdToStr.class, 1L));
-		Assert.assertEquals("bar", executor.get(Statements.TestIdToStr.class, 2L));
-		Assert.assertEquals(null, executor.get(Statements.TestIdToStr.class, 3L));
+		Assert.assertEquals("foo", executor.with(Statements.TestIdToStr.class).get(1L));
+		Assert.assertEquals("bar", executor.with(Statements.TestIdToStr.class).get(2L));
+		Assert.assertEquals(null, executor.with(Statements.TestIdToStr.class).get(3L));
+	}
+	
+	@Test
+	public void testAllFull() {
+		long expectedId = 1;
+		for(Statements.TestFull testFull: executor.with(Statements.TestAllFull.class).collection()) {
+			Assert.assertEquals((long)expectedId, (long)testFull.getId());
+			
+			++expectedId;
+		}
 	}
 	
 	@Test(expected=java.util.NoSuchElementException.class)
 	public void testIterationExceed() {
-		executor.iterate(Statements.TestResultSize.class, 1, new IteratorProcessor<String, Void>() {
+		executor.with(Statements.TestResultSize.class).iterate(1, new IteratorProcessor<String, Void>() {
 			@Override
 			public Void processIterator(Iterator<String> iterator) {
 				String row = iterator.next();
@@ -252,19 +211,19 @@ public class Tests {
 
 	@Test(expected=org.springframework.dao.IncorrectResultSizeDataAccessException.class)
 	public void testWrongSingleResultAnnotation() {
-		executor.get(Statements.TestResultSize.class, 2);
+		executor.with(Statements.TestResultSize.class).get(2);
 	}
 	
 	@Test
 	public void testNonStaticOperation() {
 		try {
-			executor.execute(Statements.TestNonStatic.class);
+			executor.with(Statements.TestNonStatic.class);
 			Assert.fail("Expected exception but none thrown");
 		}
 		catch (InvalidOperationDefinitionException e) {
 			Assert.assertEquals(Statements.TestNonStatic.class, e.getOperation());
 			Assert.assertTrue("Wrong exception message: " + e.getMessage(),
-				e.getMessage().contains("class is a non-static inner class")
+				e.getMessage().contains("operation is a non-static class")
 			);
 		}
 	}
@@ -272,13 +231,13 @@ public class Tests {
 	@Test
 	public void testNoDefaultConstructor() {
 		try {
-			executor.execute(Statements.TestNoDefaultConstructor.class);
+			executor.with(Statements.TestNoDefaultConstructor.class);
 			Assert.fail("Expected exception but none thrown");
 		}
 		catch (InvalidOperationDefinitionException e) {
 			Assert.assertEquals(Statements.TestNoDefaultConstructor.class, e.getOperation());
 			Assert.assertTrue("Wrong exception message: " + e.getMessage(),
-				e.getMessage().contains("class has no default constructor")
+				e.getMessage().contains("unable to instantiate operation")
 			);
 		}
 	}
@@ -286,13 +245,13 @@ public class Tests {
 	@Test
 	public void testNoStatement() {
 		try {
-			executor.execute(Statements.TestNoStatement.class);
+			executor.with(Statements.TestNoStatement.class).execute();
 			Assert.fail("Expected exception but none thrown");
 		}
 		catch (InvalidOperationDefinitionException e) {
 			Assert.assertEquals(Statements.TestNoStatement.class, e.getOperation());
 			Assert.assertTrue("Wrong exception message: " + e.getMessage(),
-				e.getMessage().contains("class neither implements StatementIsComputed nor does it carry @Statement annotation")
+				e.getMessage().contains("class neither implements OperationStatementIsComputed nor does it carry @Statement annotation")
 			);
 		}
 	}
@@ -300,13 +259,13 @@ public class Tests {
 	@Test
 	public void testAmbiguousStatement() {
 		try {
-			executor.execute(Statements.TestAmbiguousStatement.class);
+			executor.with(Statements.TestAmbiguousStatement.class).execute();
 			Assert.fail("Expected exception but none thrown");
 		}
 		catch (InvalidOperationDefinitionException e) {
 			Assert.assertEquals(Statements.TestAmbiguousStatement.class, e.getOperation());
 			Assert.assertTrue("Wrong exception message: " + e.getMessage(),
-				e.getMessage().contains("class both implements StatementIsComputed and carries a @Statement annotation")
+				e.getMessage().contains("class both implements OperationStatementIsComputed and carries a @Statement annotation")
 			);
 		}
 	}	

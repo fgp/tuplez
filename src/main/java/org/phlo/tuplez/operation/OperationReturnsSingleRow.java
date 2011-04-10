@@ -16,6 +16,25 @@ package org.phlo.tuplez.operation;
  * @see org.phlo.tuplez.Executor#get(Class, Object) Executor#get(opClass, input)
  * @see org.phlo.tuplez.Executor#get(Class opClass) Executor#get(opClass)
  */
-public interface ReturnsSingleRow {
-	/* Just a marker, no members */
+public interface OperationReturnsSingleRow<InputType, OutputType> extends Operation<InputType, OutputType> {
+	/**
+	 * Executes the operation, returning the single
+	 * output produced or null.
+	 * 
+	 * @see org.phlo.tuplez.Executor#get(Class, Object)
+	 * 
+	 * @param input the operation's input
+	 * @return the output produced or null
+	 */
+	OutputType get(final InputType input);
+	
+	/**
+	 * Executes the operation, returning the single
+	 * output produced or null.
+	 * 
+	 * @see org.phlo.tuplez.Executor#get(Class)
+	 * 
+	 * @return the output produced or null
+	 */
+	OutputType get();
 }

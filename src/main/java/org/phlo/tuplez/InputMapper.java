@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.springframework.jdbc.core.StatementCreatorUtils;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.util.Assert;
 
 import org.phlo.tuplez.operation.*;
 
@@ -35,7 +36,7 @@ import org.phlo.tuplez.operation.*;
  *
  * @param <InputType>
  */
-public final class InputMapper<InputType> {
+final class InputMapper<InputType> {
 	/**
 	 * Input mapper instance cache
 	 */
@@ -130,6 +131,16 @@ public final class InputMapper<InputType> {
 	 * The operation's class
 	 */
 	private final Class<? extends Operation<InputType, ?>> m_opClass;
+	
+	/**
+	 * The operation's input type class
+	 */
+	private final Class<InputType> m_inputClass;
+	
+	/**
+	 * The operation's default input class
+	 */
+	private final Class<?> m_defaultInputClass;
 
 	/**
 	 * The available input fields, indexed by their parameter name
@@ -151,25 +162,33 @@ public final class InputMapper<InputType> {
 		m_opClass = opClass;
 		
 		/* Get InputType of statement class */
-		Class<InputType> inputClass = OperationMetaData.getOperationInputClass(opClass);
+		m_inputClass = OperationMetaData.getInputClass(opClass);
+		
+		m_defaultInputClass = defaultInputClass;
 		
 		/* Scan default input for getters */
-		for(Method defaultMethod: defaultInputClass.getMethods())
-			addField(Scope.DEFAULT, defaultMethod);
+		if (m_defaultInputClass != null) {
+			for(Method defaultMethod: m_defaultInputClass.getMethods())
+				addField(Scope.DEFAULT, defaultMethod);
+		}
 		
 		/* Scan input for getters */
-		for(Method inputMethod: inputClass.getMethods())
+		for(Method inputMethod: m_inputClass.getMethods())
 			addField(Scope.IN, inputMethod);
 		
 		/* Add special field "in" representing the whole input */
 		FieldMetaData inWholeMetaData = new FieldMetaData();
 		inWholeMetaData.scope = Scope.IN_WHOLE;
-		inWholeMetaData.fieldClass = inputClass;
+		inWholeMetaData.fieldClass = m_inputClass;
 		computeTypes(inWholeMetaData);
 		m_fields.put("in", inWholeMetaData);
 	}
 	
-	public boolean addField(Scope scope, Method method) {
+	public boolean isInputVoid() {
+		return m_inputClass.equals(Void.class);
+	}
+	
+	private boolean addField(Scope scope, Method method) {
 		assert (scope == Scope.DEFAULT) || (scope == Scope.IN);
 		
 		/* Accessors mapped to fields must be public non-static members */
@@ -208,7 +227,7 @@ public final class InputMapper<InputType> {
 		return true;
 	}
 	
-	public void computeTypes(FieldMetaData fieldMeta) {
+	private void computeTypes(FieldMetaData fieldMeta) {
 		/* We use jdbcTemplate's default mapping from Java types
 		 * to SQL types except for Enums, which we special-case
 		 * by converting them to strings
@@ -223,7 +242,17 @@ public final class InputMapper<InputType> {
 		}
 	}
 	
+	public SqlParameterSource mapInput(final Object defaultInput) {
+		if (!m_inputClass.equals(Void.class))
+			throw new UnsupportedOperationException("mapInput(Object defaultInput) not supported for operations with non-void input");
+		
+		return mapInput(null, defaultInput);
+	}
+	
 	public SqlParameterSource mapInput(final InputType input, final Object defaultInput) {
+		if (m_defaultInputClass != null)
+			Assert.notNull(defaultInput, "Default input must not be null");
+		
 		return new SqlParameterSource() {
 			@Override
 			public boolean hasValue(String paramName) {
@@ -235,7 +264,7 @@ public final class InputMapper<InputType> {
 				/* Complain if the field is not defined */
 				FieldMetaData fieldMeta = m_fields.get(paramName);
 				if (fieldMeta == null)
-					throw new IllegalArgumentException("No value for parameter " + paramName);
+					throw new IllegalArgumentException("No getter for parameter " + paramName + " in " + m_inputClass);
 				
 				/* Get field value */
 				Object value;

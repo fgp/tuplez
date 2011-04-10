@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentMap;
  * @author fgp
  *
  */
-public final class OutputProxyInvocationHandler implements InvocationHandler {
+final class OutputProxyInvocationHandler implements InvocationHandler {
 	/**
 	 * Handler for a specific method, whose result is possible
 	 * non-immutable (i.e. the method's results depends on the arguments

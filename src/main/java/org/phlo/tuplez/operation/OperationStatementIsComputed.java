@@ -15,7 +15,7 @@ package org.phlo.tuplez.operation;
  *
  * @param <InputType> Interface representing a database operation's input parameters
  */
-public interface StatementIsComputed<InputType> extends OperationInput<InputType> {
+public interface OperationStatementIsComputed<InputType, OutputType> extends Operation<InputType, OutputType> {
 	/**
 	 * Must return the statement to be used to execute an 
 	 * {@link StatementIsComputed} implementation
